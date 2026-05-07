@@ -272,6 +272,7 @@ function ContributePanel() {
 }
 
 function App() {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const [activePage, setActivePage] = useState('Data')
   const [activeTab, setActiveTab] = useState('Overview')
   const [rangeDays, setRangeDays] = useState(30)
@@ -303,8 +304,8 @@ function App() {
         setError('')
 
         const [overviewRes, trendsRes] = await Promise.all([
-          fetch(`/api/metrics/overview?rangeDays=${rangeDays}`),
-          fetch('/api/metrics/trends?months=9'),
+          fetch(`${apiBase}/api/metrics/overview?rangeDays=${rangeDays}`),
+          fetch(`${apiBase}/api/metrics/trends?months=9`),
         ])
 
         if (!overviewRes.ok || !trendsRes.ok) {
@@ -325,7 +326,7 @@ function App() {
     }
 
     loadData()
-  }, [rangeDays])
+  }, [apiBase, rangeDays])
 
   return (
     <main className="dashboard">

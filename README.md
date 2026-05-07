@@ -1,16 +1,48 @@
-# React + Vite
+# App Store Review Times
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Public dashboard and webhook-backed metrics for App Store review timing.
 
-Currently, two official plugins are available:
+## Runtime architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Frontend: Vite + React
+- API: Vercel Functions under `api/`
+- Database: Supabase Postgres
 
-## React Compiler
+## Deploy on Vercel + Supabase
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Connect this repo to Vercel.
+2. Install/attach Supabase via Vercel Marketplace integration.
+3. In Supabase SQL editor, run `supabase/schema.sql`.
+4. Deploy.
 
-## Expanding the ESLint configuration
+## Required environment variables
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The Vercel + Supabase integration normally injects these:
+
+- `POSTGRES_URL` (preferred)
+- `POSTGRES_PRISMA_URL` (fallback)
+- `POSTGRES_URL_NON_POOLING` (fallback)
+
+Optional:
+
+- `WEBHOOK_SECRET_MAP` - comma-separated secret to user mapping:
+  - Example: `secret_a:user_1,secret_b:user_2`
+- `VITE_API_BASE_URL` - only needed if frontend should call an external API host instead of same-origin `/api`.
+
+## API routes
+
+- `GET /api/health`
+- `GET /api/metrics/overview?rangeDays=30`
+- `GET /api/metrics/trends?months=9`
+- `POST /api/webhooks/apple`
+
+## Local scripts
+
+- `npm run dev` - Vite frontend + legacy local Express API
+- `npm run build` - frontend production build
+- `npm run lint` - lint project files
+
+## Notes
+
+- `api/` routes are the Vercel production path.
+- Existing `server/` code remains for local prototype workflows and seeded demo data.
