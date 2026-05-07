@@ -1,6 +1,7 @@
 import { pgQuery } from '../_lib/db.js'
 import { recomputeDurationsForVersion } from '../_lib/durations.js'
 import { hashWebhookSecret } from '../_lib/secrets.js'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 
 const VALID_STATES = new Set([
   'PREPARE_FOR_SUBMISSION',
@@ -50,6 +51,49 @@ function normalizePayload(payload) {
   }
 }
 
+function getPayloadString(rawBody, normalizedPayload) {
+  if (typeof rawBody === 'string') return rawBody
+  return JSON.stringify(normalizedPayload)
+}
+
+function parseAppleSignature(value) {
+  if (typeof value !== 'string') return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const prefix = 'hmacsha256='
+  if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length)
+  return trimmed
+}
+
+function verifyAppleSignature(req, normalizedPayload) {
+  const signingSecret = process.env.APPLE_WEBHOOK_SIGNING_SECRET
+  if (!signingSecret) return
+
+  const signatureHeader = req.headers['x-apple-signature']
+  const providedHex = parseAppleSignature(signatureHeader)
+  if (!providedHex) {
+    const error = new Error('Missing x-apple-signature header')
+    error.statusCode = 401
+    throw error
+  }
+
+  const payload = getPayloadString(req.body, normalizedPayload)
+  const expectedHex = createHmac('sha256', signingSecret).update(payload, 'utf8').digest('hex')
+
+  const providedBuffer = Buffer.from(providedHex, 'hex')
+  const expectedBuffer = Buffer.from(expectedHex, 'hex')
+  if (
+    providedBuffer.length === 0 ||
+    expectedBuffer.length === 0 ||
+    providedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(providedBuffer, expectedBuffer)
+  ) {
+    const error = new Error('Invalid x-apple-signature')
+    error.statusCode = 401
+    throw error
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST'])
@@ -58,6 +102,7 @@ export default async function handler(req, res) {
 
   try {
     const normalized = normalizePayload(req.body || {})
+    verifyAppleSignature(req, normalized.raw)
     const userId = await resolveUserId(req, normalized.raw)
 
     if (!normalized.event_id || !normalized.app_version_id || !normalized.new_state || !normalized.timestamp) {

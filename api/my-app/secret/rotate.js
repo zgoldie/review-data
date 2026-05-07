@@ -1,7 +1,7 @@
-import { requireAuthenticatedUser } from '../../../_lib/auth.js'
-import { ensureAppConnection } from '../../../_lib/myApp.js'
-import { generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../../../_lib/secrets.js'
-import { pgQuery } from '../../../_lib/db.js'
+import { requireAuthenticatedUser } from '../../_lib/auth.js'
+import { ensureAppConnection } from '../../_lib/myApp.js'
+import { generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../../_lib/secrets.js'
+import { pgQuery } from '../../_lib/db.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

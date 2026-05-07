@@ -338,6 +338,15 @@ function AccountsPanel({
 }
 
 function App() {
+  async function parseJsonResponse(response) {
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      const text = await response.text()
+      return { error: text || 'Unexpected non-JSON response' }
+    }
+    return response.json()
+  }
+
   const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const [activePage, setActivePage] = useState('Data')
   const [activeTab, setActiveTab] = useState('Overview')
@@ -450,7 +459,7 @@ function App() {
         const response = await fetch(`${apiBase}/api/my-app/setup`, {
           headers: { Authorization: `Bearer ${authToken}` },
         })
-        const payload = await response.json()
+        const payload = await parseJsonResponse(response)
         if (!response.ok) {
           throw new Error(payload.error || 'Failed to load setup')
         }
@@ -511,7 +520,7 @@ function App() {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
       })
-      const payload = await response.json()
+      const payload = await parseJsonResponse(response)
       if (!response.ok) {
         throw new Error(payload.error || 'Failed to manage secret')
       }
