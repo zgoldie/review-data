@@ -433,6 +433,49 @@ select {
   position: relative;
 }
 
+.chart-scroll-shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 6px;
+}
+
+.chart-scroll-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.chart-scroll-button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  width: 24px;
+  height: 24px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chart-scroll-track {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: grab;
+  touch-action: pan-x;
+  user-select: none;
+}
+
+.chart-scroll-track.is-dragging {
+  cursor: grabbing;
+}
+
+.chart-scroll-inner {
+  height: 100%;
+}
+
 .trends-wrap {
   overflow: hidden;
 }
@@ -508,7 +551,22 @@ select {
     padding: 8px;
   }
 
+  .stats-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
   .stats-item {
     border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  .stats-item:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .stats-item:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
   }
 }

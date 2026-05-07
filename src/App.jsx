@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -57,10 +57,74 @@ function StatsBar({ items }) {
   )
 }
 
+function ScrollableChartArea({ isMobile, minWidth = 760, children }) {
+  const scrollRef = useRef(null)
+  const dragRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0 })
+
+  function scrollByOffset(offset) {
+    if (!scrollRef.current) return
+    scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' })
+  }
+
+  function handlePointerDown(event) {
+    if (!scrollRef.current) return
+    dragRef.current = {
+      isDragging: true,
+      startX: event.clientX,
+      startScrollLeft: scrollRef.current.scrollLeft,
+    }
+    scrollRef.current.classList.add('is-dragging')
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handlePointerMove(event) {
+    if (!scrollRef.current || !dragRef.current.isDragging) return
+    const delta = event.clientX - dragRef.current.startX
+    scrollRef.current.scrollLeft = dragRef.current.startScrollLeft - delta
+  }
+
+  function handlePointerUp(event) {
+    if (!scrollRef.current) return
+    dragRef.current.isDragging = false
+    scrollRef.current.classList.remove('is-dragging')
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  return (
+    <div className="chart-scroll-shell">
+      {isMobile ? (
+        <div className="chart-scroll-controls" aria-label="Chart horizontal controls">
+          <button type="button" className="chart-scroll-button" onClick={() => scrollByOffset(-160)}>
+            {'<'}
+          </button>
+          <button type="button" className="chart-scroll-button" onClick={() => scrollByOffset(160)}>
+            {'>'}
+          </button>
+        </div>
+      ) : null}
+      <div
+        className="chart-scroll-track"
+        ref={scrollRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div className="chart-scroll-inner" style={isMobile ? { width: `${minWidth}px` } : { width: '100%' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DistributionChart({ data, dataKey = 'pct', label, control }) {
   const maxValue = data.reduce((max, point) => Math.max(max, point[dataKey] ?? 0), 0)
   const maxTick = Math.max(10, Math.ceil(maxValue / 10) * 10)
   const yTicks = Array.from({ length: maxTick / 10 + 1 }, (_, index) => index * 10)
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
 
   return (
     <div className="chart-frame">
@@ -71,55 +135,58 @@ function DistributionChart({ data, dataKey = 'pct', label, control }) {
         </div>
       ) : null}
       <div className="chart-wrap">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
-            <defs>
-              <pattern id="barHatchPos" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <rect width="8" height="8" fill="var(--chart-bar-fill)" />
-                <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
-              </pattern>
-              <pattern id="barHatchNeg" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-                <rect width="8" height="8" fill="var(--chart-bar-fill)" />
-                <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
-              </pattern>
-            </defs>
-            <CartesianGrid vertical={false} stroke={CHART_STYLES.grid} />
-            <XAxis
-              dataKey="bucket"
-              tick={{ fill: CHART_STYLES.axis, fontSize: 11 }}
-              axisLine={{ stroke: CHART_STYLES.axis }}
-              tickLine={{ stroke: CHART_STYLES.axis }}
-              tickFormatter={(value) => `${value} hrs`}
-            />
-            <YAxis
-              ticks={yTicks}
-              domain={[0, maxTick]}
-              tick={{ fill: CHART_STYLES.axis, fontSize: 11 }}
-              axisLine={{ stroke: CHART_STYLES.axis }}
-              tickLine={{ stroke: CHART_STYLES.axis }}
-              tickFormatter={(value) => `${value}%`}
-            />
-            <Tooltip
-              cursor={false}
-              formatter={(value) => `${value}%`}
-              labelFormatter={(label) => `${label} hrs`}
-              separator=": "
-              contentStyle={{
-                border: '1px solid var(--border)',
-                borderRadius: '4px',
-                background: 'var(--bg-surface)',
-                color: 'var(--text)',
-                padding: '6px 8px',
-              }}
-              wrapperStyle={{ outline: 'none' }}
-            />
-            <Bar dataKey={dataKey} stroke={CHART_STYLES.barStroke} strokeWidth={0.7}>
-              {data.map((entry, index) => (
-                <Cell key={`${entry.bucket}-${index}`} fill={index % 2 === 0 ? 'url(#barHatchPos)' : 'url(#barHatchNeg)'} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <ScrollableChartArea isMobile={isMobile} minWidth={780}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data} margin={isMobile ? { top: 12, right: 10, left: 0, bottom: 8 } : { top: 16, right: 18, left: 0, bottom: 8 }}>
+              <defs>
+                <pattern id="barHatchPos" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <rect width="8" height="8" fill="var(--chart-bar-fill)" />
+                  <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
+                </pattern>
+                <pattern id="barHatchNeg" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                  <rect width="8" height="8" fill="var(--chart-bar-fill)" />
+                  <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
+                </pattern>
+              </defs>
+              <CartesianGrid vertical={false} stroke={CHART_STYLES.grid} />
+              <XAxis
+                dataKey="bucket"
+                tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 11 : 11 }}
+                axisLine={{ stroke: CHART_STYLES.axis }}
+                tickLine={{ stroke: CHART_STYLES.axis }}
+                interval={0}
+              />
+              <YAxis
+                ticks={yTicks}
+                domain={[0, maxTick]}
+                width={isMobile ? 32 : 36}
+                tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 10 : 11 }}
+                axisLine={{ stroke: CHART_STYLES.axis }}
+                tickLine={{ stroke: CHART_STYLES.axis }}
+                tickFormatter={(value) => `${value}%`}
+              />
+              <Tooltip
+                cursor={false}
+                formatter={(value) => `${value}%`}
+                labelFormatter={(label) => `${label} hrs`}
+                separator=": "
+                contentStyle={{
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text)',
+                  padding: '6px 8px',
+                }}
+                wrapperStyle={{ outline: 'none' }}
+              />
+              <Bar dataKey={dataKey} stroke={CHART_STYLES.barStroke} strokeWidth={0.7}>
+                {data.map((entry, index) => (
+                  <Cell key={`${entry.bucket}-${index}`} fill={index % 2 === 0 ? 'url(#barHatchPos)' : 'url(#barHatchNeg)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ScrollableChartArea>
       </div>
     </div>
   )
@@ -129,6 +196,7 @@ function TrendsChart({ data }) {
   const maxTrendValue = data.reduce((max, point) => Math.max(max, point.p0 + point.r0to10 + point.r10to25 + point.r25to75 + point.r75to90 + point.r90to100 || 0), 0)
   const maxTrendTick = Math.max(24, Math.ceil(maxTrendValue / 24) * 24)
   const trendTicks = Array.from({ length: Math.floor(maxTrendTick / 24) + 1 }, (_, index) => index * 24)
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
 
   function renderTrendsTooltip({ active, payload }) {
     if (!active || !payload || !payload.length) return null
@@ -156,19 +224,22 @@ function TrendsChart({ data }) {
   return (
     <div className="chart-frame">
       <div className="chart-wrap trends-wrap">
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={data} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
+        <ScrollableChartArea isMobile={isMobile} minWidth={740}>
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart data={data} margin={isMobile ? { top: 12, right: 10, left: 0, bottom: 14 } : { top: 16, right: 18, left: 0, bottom: 8 }}>
             <CartesianGrid vertical={false} stroke={CHART_STYLES.grid} />
             <XAxis
               dataKey="month"
-              tick={{ fill: CHART_STYLES.axis }}
+              tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 10 : 12 }}
               axisLine={{ stroke: CHART_STYLES.axis }}
               tickLine={{ stroke: CHART_STYLES.axis }}
+              interval={0}
             />
             <YAxis
               ticks={trendTicks}
               domain={[0, maxTrendTick]}
-              tick={{ fill: CHART_STYLES.axis }}
+              width={isMobile ? 32 : 36}
+              tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 10 : 12 }}
               axisLine={{ stroke: CHART_STYLES.axis }}
               tickLine={{ stroke: CHART_STYLES.axis }}
               unit="h"
@@ -181,8 +252,9 @@ function TrendsChart({ data }) {
             <Bar dataKey="r75to90" stackId="ranges" fill="var(--trend-band-4)" stroke="none" />
             <Bar dataKey="r90to100" stackId="ranges" fill="var(--trend-band-5)" stroke="none" />
             <Line type="linear" dataKey="p50" stroke={CHART_STYLES.text} strokeWidth={2} dot={{ r: 2.5, fill: CHART_STYLES.text }} name="Median" />
-          </ComposedChart>
-        </ResponsiveContainer>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ScrollableChartArea>
       </div>
     </div>
   )
@@ -192,17 +264,20 @@ function MyAppChartPlaceholder() {
   const monthTicks = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May']
   const scaffoldData = monthTicks.map((month) => ({ month, value: 0 }))
   const yTicks = [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 240]
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
 
   return (
     <div className="chart-frame">
       <div className="chart-wrap myapp-wrap">
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={scaffoldData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
+        <ScrollableChartArea isMobile={isMobile} minWidth={740}>
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart data={scaffoldData} margin={isMobile ? { top: 12, right: 10, left: 0, bottom: 14 } : { top: 16, right: 18, left: 0, bottom: 8 }}>
             <CartesianGrid vertical={false} stroke={CHART_STYLES.grid} />
-            <XAxis dataKey="month" tick={{ fill: CHART_STYLES.axis }} axisLine={{ stroke: CHART_STYLES.axis }} tickLine={{ stroke: CHART_STYLES.axis }} />
-            <YAxis ticks={yTicks} domain={[0, 240]} tick={{ fill: CHART_STYLES.axis }} axisLine={{ stroke: CHART_STYLES.axis }} tickLine={{ stroke: CHART_STYLES.axis }} unit="h" />
-          </ComposedChart>
-        </ResponsiveContainer>
+              <XAxis dataKey="month" tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 10 : 12 }} axisLine={{ stroke: CHART_STYLES.axis }} tickLine={{ stroke: CHART_STYLES.axis }} interval={0} />
+              <YAxis ticks={yTicks} domain={[0, 240]} width={isMobile ? 32 : 36} tick={{ fill: CHART_STYLES.axis, fontSize: isMobile ? 10 : 12 }} axisLine={{ stroke: CHART_STYLES.axis }} tickLine={{ stroke: CHART_STYLES.axis }} unit="h" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ScrollableChartArea>
         <div className="myapp-empty">Connect Your App</div>
       </div>
     </div>
