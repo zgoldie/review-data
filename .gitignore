@@ -24,3 +24,4 @@ server/db/data
 *.sln
 *.sw?
 .vercel
+.env*.local

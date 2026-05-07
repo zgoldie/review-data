@@ -13,10 +13,10 @@ import {
 } from 'recharts'
 
 const CHART_STYLES = {
-  grid: '#e7e7e7',
-  axis: '#4b4b4b',
-  text: '#111111',
-  barStroke: '#6a6a6a',
+  grid: 'var(--chart-grid)',
+  axis: 'var(--chart-axis)',
+  text: 'var(--chart-text)',
+  barStroke: 'var(--chart-bar-stroke)',
 }
 
 const EMPTY_DISTRIBUTION = ['0-12', '12-24', '24-36', '36-48', '48-60', '60-72', '72-84', '84-96', '96-108', '108-120', '120+'].map((bucket) => ({
@@ -102,10 +102,10 @@ function DistributionChart({ data, dataKey = 'pct', label, control }) {
               labelFormatter={(label) => `${label} hrs`}
               separator=": "
               contentStyle={{
-                border: '1px solid #171717',
+                border: '1px solid var(--border)',
                 borderRadius: '4px',
-                background: '#fbfbfb',
-                color: '#171717',
+                background: 'var(--bg-surface)',
+                color: 'var(--text)',
                 padding: '6px 8px',
               }}
               wrapperStyle={{ outline: 'none' }}
@@ -172,11 +172,11 @@ function TrendsChart({ data }) {
             />
             <Tooltip content={renderTrendsTooltip} />
             <Bar dataKey="p0" stackId="ranges" fill="transparent" stroke="none" />
-            <Bar dataKey="r0to10" stackId="ranges" fill="#dcdcdc" stroke="none" />
-            <Bar dataKey="r10to25" stackId="ranges" fill="#cfcfcf" stroke="none" />
-            <Bar dataKey="r25to75" stackId="ranges" fill="#a8a8a8" stroke="none" />
-            <Bar dataKey="r75to90" stackId="ranges" fill="#c7c7c7" stroke="none" />
-            <Bar dataKey="r90to100" stackId="ranges" fill="#d6d6d6" stroke="none" />
+            <Bar dataKey="r0to10" stackId="ranges" fill="var(--trend-band-1)" stroke="none" />
+            <Bar dataKey="r10to25" stackId="ranges" fill="var(--trend-band-2)" stroke="none" />
+            <Bar dataKey="r25to75" stackId="ranges" fill="var(--trend-band-3)" stroke="none" />
+            <Bar dataKey="r75to90" stackId="ranges" fill="var(--trend-band-4)" stroke="none" />
+            <Bar dataKey="r90to100" stackId="ranges" fill="var(--trend-band-5)" stroke="none" />
             <Line type="linear" dataKey="p50" stroke={CHART_STYLES.text} strokeWidth={2} dot={{ r: 2.5, fill: CHART_STYLES.text }} name="Median" />
           </ComposedChart>
         </ResponsiveContainer>
@@ -296,6 +296,18 @@ function App() {
     () => `Apple claims 90% under 24hrs. Currently ${overviewStatsRaw.under24hrs}%`,
     [overviewStatsRaw.under24hrs],
   )
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const applyTheme = (event) => {
+      const isDark = typeof event?.matches === 'boolean' ? event.matches : media.matches
+      document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+    }
+
+    applyTheme()
+    media.addEventListener('change', applyTheme)
+    return () => media.removeEventListener('change', applyTheme)
+  }, [])
 
   useEffect(() => {
     async function loadData() {
