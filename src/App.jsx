@@ -43,7 +43,7 @@ const toStackedTrendData = (rawTrendsData) =>
   }))
 
 const tabs = ['Overview', 'Trend', 'My App']
-const pages = ['Data', 'About', 'Contribute']
+const pages = ['Data', 'About', 'Add Data']
 
 function StatsBar({ items }) {
   return (
@@ -267,6 +267,14 @@ function ContributePanel() {
           And you&apos;re done.<br />
           Your data will pull through, and you'll be able to see the trend for your own reviews.
         </p>
+
+        <h2>Data Safety</h2>
+        <p>
+          The webhook payload is lightweight. It only includes event identifiers, app version identifiers, state transitions, and timestamps.
+        </p>
+        <p>
+          It does not include source code, app binaries, customer data, or other sensitive information about your application.
+        </p>
    
       </div>
     </section>
@@ -290,6 +298,23 @@ function AccountsPanel({
   onSubmit,
   onSignOut,
 }) {
+  const webhookUrl = 'https://review-data-five.vercel.app/api/webhooks/apple'
+  const ascWebhookHelpUrl =
+    'https://developer.apple.com/help/app-store-connect/manage-your-team/manage-webhooks/#:~:text=In%20Users-,and,-Access%2C%20click%20Integrations'
+  const [copiedField, setCopiedField] = useState('')
+
+  async function copyValue(value, field) {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedField(field)
+      window.setTimeout(() => {
+        setCopiedField((current) => (current === field ? '' : current))
+      }, 1500)
+    } catch {
+      setCopiedField('')
+    }
+  }
+
   if (session) {
     return (
       <section className="auth-panel">
@@ -310,7 +335,37 @@ function AccountsPanel({
             Log Out
           </button>
         </div>
-        {latestSecret ? <p className="auth-info">Copy this now: {latestSecret}</p> : null}
+        {latestSecret ? (
+          <div className="copy-row">
+            <p className="auth-info">Copy this now: {latestSecret}</p>
+            <button type="button" className="copy-icon-button" aria-label="Copy secret" onClick={() => copyValue(latestSecret, 'secret')}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 1.5V9h4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+                <rect x="3" y="7" width="12" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+            </button>
+            {copiedField === 'secret' ? <span className="copy-feedback">Copied</span> : null}
+          </div>
+        ) : null}
+        <p className="auth-info">
+          In{' '}
+          <a href={ascWebhookHelpUrl} target="_blank" rel="noreferrer">
+            App Store Connect webhooks
+          </a>
+          , create a webhook using this secret and endpoint URL:
+        </p>
+        <div className="copy-row">
+          <p className="auth-info">
+            <code>{webhookUrl}</code>
+          </p>
+          <button type="button" className="copy-icon-button" aria-label="Copy webhook URL" onClick={() => copyValue(webhookUrl, 'url')}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 1.5V9h4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+              <rect x="3" y="7" width="12" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+          </button>
+          {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
+        </div>
         {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
     )
@@ -658,7 +713,7 @@ function App() {
         <AboutPanel />
       )}
 
-      {activePage === 'Contribute' && (
+      {activePage === 'Add Data' && (
         <ContributePanel />
       )}
     </main>

@@ -199,6 +199,37 @@ body {
   font-size: 12px;
 }
 
+.copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.copy-icon-button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.copy-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copy-feedback {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
 .myapp-setup {
   display: grid;
   gap: 8px;
