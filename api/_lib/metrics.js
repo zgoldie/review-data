@@ -15,7 +15,7 @@ const BUCKETS = [
 ]
 
 function round(value) {
-  return Number(value.toFixed(2))
+  return Number(value.toFixed(1))
 }
 
 function percentile(sorted, p) {

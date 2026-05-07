@@ -192,7 +192,6 @@ function MyAppChartPlaceholder() {
 
   return (
     <div className="chart-frame">
-      <p className="chart-title">My App</p>
       <div className="chart-wrap myapp-wrap">
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={scaffoldData} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
@@ -404,6 +403,18 @@ function App() {
       {!loading && !error && activePage === 'Data' && activeTab === 'My App' && (
         <section className="tab-panel">
           <MyAppChartPlaceholder />
+          <section className="chart-frame">
+            <p className="chart-title">Connect your app to see your under-24hrs share.</p>
+          </section>
+          <StatsBar
+            items={[
+              'Apps: 1',
+              'Reviews: -',
+              'Under 24hrs: -',
+              'Under 48hrs: -',
+              'Rejected: -',
+            ]}
+          />
         </section>
       )}
 
