@@ -1,5 +1,6 @@
 import { pgQuery } from '../_lib/db.js'
 import { recomputeDurationsForVersion } from '../_lib/durations.js'
+import { hashWebhookSecret } from '../_lib/secrets.js'
 
 const VALID_STATES = new Set([
   'PREPARE_FOR_SUBMISSION',
@@ -9,25 +10,33 @@ const VALID_STATES = new Set([
   'REJECTED',
 ])
 
-function parseSecretMap() {
-  const mapRaw = process.env.WEBHOOK_SECRET_MAP || ''
-  const pairs = mapRaw.split(',').map((part) => part.trim()).filter(Boolean)
-  return new Map(
-    pairs
-      .map((pair) => pair.split(':'))
-      .filter((parts) => parts.length === 2)
-      .map(([secret, userId]) => [secret.trim(), userId.trim()]),
+async function resolveUserId(req, payload) {
+  const providedSecret = req.headers['x-webhook-secret'] || payload.secret
+  if (typeof providedSecret !== 'string' || !providedSecret) {
+    const error = new Error('Missing webhook secret')
+    error.statusCode = 401
+    throw error
+  }
+
+  const secretHash = hashWebhookSecret(providedSecret)
+  const result = await pgQuery(
+    `SELECT user_id
+     FROM webhook_credentials
+     WHERE secret_hash = $1
+       AND is_active = TRUE
+       AND revoked_at IS NULL
+     LIMIT 1`,
+    [secretHash],
   )
-}
 
-function resolveUserId(req, payload) {
-  const fromPayload = payload.user_id || payload.userId
-  if (fromPayload) return fromPayload
+  const userId = result.rows[0]?.user_id
+  if (!userId) {
+    const error = new Error('Invalid webhook secret')
+    error.statusCode = 401
+    throw error
+  }
 
-  const secret = req.headers['x-webhook-secret'] || payload.secret
-  const map = parseSecretMap()
-  if (typeof secret === 'string' && map.has(secret)) return map.get(secret)
-  return 'demo-user'
+  return userId
 }
 
 function normalizePayload(payload) {
@@ -49,7 +58,7 @@ export default async function handler(req, res) {
 
   try {
     const normalized = normalizePayload(req.body || {})
-    const userId = resolveUserId(req, normalized.raw)
+    const userId = await resolveUserId(req, normalized.raw)
 
     if (!normalized.event_id || !normalized.app_version_id || !normalized.new_state || !normalized.timestamp) {
       return res.status(400).json({ error: 'Missing required fields: event_id, app_version_id, new_state, timestamp' })
@@ -93,6 +102,7 @@ export default async function handler(req, res) {
       app_version_id: normalized.app_version_id,
     })
   } catch (error) {
-    return res.status(500).json({ error: 'Webhook ingest failed', detail: error.message })
+    const statusCode = error.statusCode || 500
+    return res.status(statusCode).json({ error: 'Webhook ingest failed', detail: error.message })
   }
 }

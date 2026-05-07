@@ -64,3 +64,72 @@ create table if not exists summary_trends (
   sample_size integer not null,
   computed_at timestamptz not null default now()
 );
+
+create extension if not exists pgcrypto;
+
+create table if not exists app_connections (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique,
+  app_store_app_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists webhook_credentials (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  secret_hash text not null unique,
+  secret_prefix text not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  rotated_at timestamptz,
+  revoked_at timestamptz
+);
+
+create index if not exists idx_webhook_credentials_user_active
+  on webhook_credentials(user_id, is_active, created_at desc);
+
+create index if not exists idx_webhook_credentials_secret_active
+  on webhook_credentials(secret_hash)
+  where is_active = true and revoked_at is null;
+
+alter table app_connections enable row level security;
+alter table webhook_credentials enable row level security;
+
+drop policy if exists app_connections_select_own on app_connections;
+create policy app_connections_select_own
+on app_connections
+for select
+using (user_id = auth.uid());
+
+drop policy if exists app_connections_insert_own on app_connections;
+create policy app_connections_insert_own
+on app_connections
+for insert
+with check (user_id = auth.uid());
+
+drop policy if exists app_connections_update_own on app_connections;
+create policy app_connections_update_own
+on app_connections
+for update
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists webhook_credentials_select_own on webhook_credentials;
+create policy webhook_credentials_select_own
+on webhook_credentials
+for select
+using (user_id = auth.uid());
+
+drop policy if exists webhook_credentials_insert_own on webhook_credentials;
+create policy webhook_credentials_insert_own
+on webhook_credentials
+for insert
+with check (user_id = auth.uid());
+
+drop policy if exists webhook_credentials_update_own on webhook_credentials;
+create policy webhook_credentials_update_own
+on webhook_credentials
+for update
+using (user_id = auth.uid())
+with check (user_id = auth.uid());

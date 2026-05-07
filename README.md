@@ -25,8 +25,8 @@ The Vercel + Supabase integration normally injects these:
 
 Optional:
 
-- `WEBHOOK_SECRET_MAP` - comma-separated secret to user mapping:
-  - Example: `secret_a:user_1,secret_b:user_2`
+- `SUPABASE_URL` - used for auth token verification in API routes
+- `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` - used to verify bearer tokens via Supabase Auth
 - `VITE_API_BASE_URL` - only needed if frontend should call an external API host instead of same-origin `/api`.
 
 ## API routes
@@ -35,6 +35,20 @@ Optional:
 - `GET /api/metrics/overview?rangeDays=30`
 - `GET /api/metrics/trends?months=9`
 - `POST /api/webhooks/apple`
+- `GET /api/my-app/setup` (auth required)
+- `POST /api/my-app/secret` (auth required)
+- `POST /api/my-app/secret/rotate` (auth required)
+
+## Basic auth + webhook secret flow
+
+1. User signs in with Supabase email/password and receives a bearer token.
+2. Client calls `POST /api/my-app/secret` with `Authorization: Bearer <token>`.
+3. API returns a one-time secret value (store it securely).
+4. User configures App Store Connect webhook with that secret.
+5. `POST /api/webhooks/apple` validates `x-webhook-secret` against hashed secrets in `webhook_credentials`.
+6. Matching webhook events are attributed to that user and ingested.
+
+Use `POST /api/my-app/secret/rotate` to invalidate the previous secret and issue a new one.
 
 ## Local scripts
 
@@ -46,3 +60,4 @@ Optional:
 
 - `api/` routes are the Vercel production path.
 - Existing `server/` code remains for local prototype workflows and seeded demo data.
+- Public dashboard metrics remain global in this pass; user-specific metrics can be layered on top later.
