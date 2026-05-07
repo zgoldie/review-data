@@ -75,9 +75,11 @@ function DistributionChart({ data, dataKey = 'pct', label, control }) {
           <BarChart data={data} margin={{ top: 16, right: 18, left: 0, bottom: 8 }}>
             <defs>
               <pattern id="barHatchPos" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="8" height="8" fill="var(--chart-bar-fill)" />
                 <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
               </pattern>
               <pattern id="barHatchNeg" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                <rect width="8" height="8" fill="var(--chart-bar-fill)" />
                 <line x1="0" y1="0" x2="0" y2="8" stroke={CHART_STYLES.barStroke} strokeWidth="2" />
               </pattern>
             </defs>
@@ -271,7 +273,7 @@ function ContributePanel() {
   )
 }
 
-function MyAppAuthPanel({
+function AccountsPanel({
   session,
   authMode,
   authEmail,
@@ -279,6 +281,9 @@ function MyAppAuthPanel({
   authPending,
   authError,
   authInfo,
+  myAppSetup,
+  latestSecret,
+  onSecretAction,
   onModeChange,
   onEmailChange,
   onPasswordChange,
@@ -287,19 +292,32 @@ function MyAppAuthPanel({
 }) {
   if (session) {
     return (
-      <section className="chart-frame auth-panel">
-        <p className="chart-title">Signed in as {session.user?.email || 'user'}</p>
+      <section className="auth-panel">
+        <p className="chart-title">
+          {myAppSetup.secretConfigured ? `Webhook secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
+        </p>
         <div className="auth-actions">
+          {!myAppSetup.secretConfigured ? (
+            <button type="button" className="login-button" onClick={() => onSecretAction('create')} disabled={myAppSetup.loading}>
+              {myAppSetup.loading ? 'Working...' : 'Generate secret'}
+            </button>
+          ) : (
+            <button type="button" className="login-button" onClick={() => onSecretAction('rotate')} disabled={myAppSetup.loading}>
+              {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
+            </button>
+          )}
           <button type="button" className="login-button" onClick={onSignOut}>
             Log Out
           </button>
         </div>
+        {latestSecret ? <p className="auth-info">Copy this now: {latestSecret}</p> : null}
+        {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
     )
   }
 
   return (
-    <section className="chart-frame auth-panel">
+    <section className="auth-panel">
       <p className="chart-title">Log in to set up your webhook secret</p>
       <form className="auth-form" onSubmit={onSubmit}>
         <input type="email" value={authEmail} onChange={(event) => onEmailChange(event.target.value)} placeholder="Email" required />
@@ -323,6 +341,7 @@ function App() {
   const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const [activePage, setActivePage] = useState('Data')
   const [activeTab, setActiveTab] = useState('Overview')
+  const [isAccountsOpen, setIsAccountsOpen] = useState(false)
   const [rangeDays, setRangeDays] = useState(30)
   const [overviewData, setOverviewData] = useState(EMPTY_DISTRIBUTION)
   const [trendsData, setTrendsData] = useState([])
@@ -370,6 +389,16 @@ function App() {
   useEffect(() => {
     if (!supabase) return
 
+    const openedFromAuthRedirect =
+      window.location.hash.includes('access_token=') ||
+      window.location.hash.includes('type=signup') ||
+      window.location.search.includes('type=signup')
+    if (openedFromAuthRedirect) {
+      setIsAccountsOpen(true)
+      setActivePage('Data')
+      setActiveTab('My App')
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setAuthSession(data.session || null)
     })
@@ -415,7 +444,7 @@ function App() {
 
   useEffect(() => {
     async function loadMyAppSetup() {
-      if (!authToken || activeTab !== 'My App' || activePage !== 'Data') return
+      if (!authToken || !isAccountsOpen) return
       try {
         setMyAppSetup((state) => ({ ...state, loading: true, error: '' }))
         const response = await fetch(`${apiBase}/api/my-app/setup`, {
@@ -437,7 +466,7 @@ function App() {
     }
 
     loadMyAppSetup()
-  }, [activePage, activeTab, apiBase, authToken])
+  }, [apiBase, authToken, isAccountsOpen])
 
   async function handleAuthSubmit(event) {
     event.preventDefault()
@@ -454,6 +483,7 @@ function App() {
         if (signUpError) throw signUpError
         setAuthInfo('Account created. You can now log in.')
         setAuthMode('login')
+        setIsAccountsOpen(true)
         return
       }
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
@@ -511,18 +541,42 @@ function App() {
             type="button"
             className="login-button"
             onClick={() => {
-              if (authSession) {
-                handleSignOut()
-                return
-              }
-              setActivePage('Data')
-              setActiveTab('My App')
+              if (!authSession) setAuthMode('login')
+              setIsAccountsOpen((current) => !current)
             }}
           >
-            {authSession ? 'Log Out' : 'Log In'}
+            {authSession ? 'Accounts' : 'Log In'}
           </button>
         </nav>
       </header>
+
+      {isAccountsOpen ? (
+        <section className="chart-frame accounts-panel">
+          <div className="accounts-panel-header">
+            <p className="chart-title">Account</p>
+            <button type="button" className="accounts-close" onClick={() => setIsAccountsOpen(false)}>
+              Close
+            </button>
+          </div>
+          <AccountsPanel
+            session={authSession}
+            authMode={authMode}
+            authEmail={authEmail}
+            authPassword={authPassword}
+            authPending={authPending}
+            authError={authError}
+            authInfo={authInfo}
+            myAppSetup={myAppSetup}
+            latestSecret={latestSecret}
+            onSecretAction={handleSecretAction}
+            onModeChange={setAuthMode}
+            onEmailChange={setAuthEmail}
+            onPasswordChange={setAuthPassword}
+            onSubmit={handleAuthSubmit}
+            onSignOut={handleSignOut}
+          />
+        </section>
+      ) : null}
 
       {activePage === 'Data' && (
       <nav className="tabs" aria-label="Dashboard tabs">
@@ -571,43 +625,13 @@ function App() {
 
       {!loading && !error && activePage === 'Data' && activeTab === 'My App' && (
         <section className="tab-panel">
-          <MyAppAuthPanel
-            session={authSession}
-            authMode={authMode}
-            authEmail={authEmail}
-            authPassword={authPassword}
-            authPending={authPending}
-            authError={authError}
-            authInfo={authInfo}
-            onModeChange={setAuthMode}
-            onEmailChange={setAuthEmail}
-            onPasswordChange={setAuthPassword}
-            onSubmit={handleAuthSubmit}
-            onSignOut={handleSignOut}
-          />
           <MyAppChartPlaceholder />
           <section className="chart-frame">
-            {!authSession ? <p className="chart-title">Log in to generate a webhook secret for your app.</p> : null}
-            {authSession ? (
-              <div className="myapp-setup">
-                <p className="chart-title">
-                  {myAppSetup.secretConfigured ? `Webhook secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
-                </p>
-                <div className="auth-actions">
-                  {!myAppSetup.secretConfigured ? (
-                    <button type="button" className="login-button" onClick={() => handleSecretAction('create')} disabled={myAppSetup.loading}>
-                      {myAppSetup.loading ? 'Working...' : 'Generate secret'}
-                    </button>
-                  ) : (
-                    <button type="button" className="login-button" onClick={() => handleSecretAction('rotate')} disabled={myAppSetup.loading}>
-                      {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
-                    </button>
-                  )}
-                </div>
-                {latestSecret ? <p className="auth-info">Copy this now: {latestSecret}</p> : null}
-                {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
-              </div>
-            ) : null}
+            <p className="chart-title">
+              {authSession
+                ? 'Open Accounts above to manage your webhook secret, then watch your app-specific trend populate.'
+                : 'Log in from Accounts above to generate a webhook secret for your app.'}
+            </p>
           </section>
           <StatsBar
             items={[
