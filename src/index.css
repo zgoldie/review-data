@@ -433,6 +433,20 @@ select {
   position: relative;
 }
 
+.dummy-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-size: clamp(24px, 6vw, 42px);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--text) 18%, transparent);
+  z-index: 2;
+}
+
 .chart-scroll-shell {
   height: 100%;
   display: grid;

@@ -19,6 +19,7 @@ const CHART_STYLES = {
   text: 'var(--chart-text)',
   barStroke: 'var(--chart-bar-stroke)',
 }
+const SHOW_DUMMY_WATERMARK = true
 
 const EMPTY_DISTRIBUTION = ['0-12', '12-24', '24-36', '36-48', '48-60', '60-72', '72-84', '84-96', '96-108', '108-120', '120+'].map((bucket) => ({
   bucket,
@@ -135,6 +136,7 @@ function DistributionChart({ data, dataKey = 'pct', label, control }) {
         </div>
       ) : null}
       <div className="chart-wrap">
+        {SHOW_DUMMY_WATERMARK ? <div className="dummy-watermark">Dummy Data</div> : null}
         <ScrollableChartArea isMobile={isMobile} minWidth={780}>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data} margin={isMobile ? { top: 12, right: 10, left: 0, bottom: 8 } : { top: 16, right: 18, left: 0, bottom: 8 }}>
@@ -224,6 +226,7 @@ function TrendsChart({ data }) {
   return (
     <div className="chart-frame">
       <div className="chart-wrap trends-wrap">
+        {SHOW_DUMMY_WATERMARK ? <div className="dummy-watermark">Dummy Data</div> : null}
         <ScrollableChartArea isMobile={isMobile} minWidth={740}>
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={data} margin={isMobile ? { top: 12, right: 10, left: 0, bottom: 14 } : { top: 16, right: 18, left: 0, bottom: 8 }}>
