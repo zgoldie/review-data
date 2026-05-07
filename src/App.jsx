@@ -261,7 +261,7 @@ function ContributePanel() {
             </a>
             .
           </li>
-          <li>Add a webhook using that secret and a URL of something.com.</li>
+          <li>Add a webhook using that secret and the provided URL.</li>
         </ol>
         <p>
           And you&apos;re done.<br />
@@ -273,7 +273,7 @@ function ContributePanel() {
           The webhook payload is lightweight. It only includes event identifiers, app version identifiers, state transitions, and timestamps.
         </p>
         <p>
-          It does not include source code, app binaries, customer data, or other sensitive information about your application.
+          It does not include any sensitive information about your application, and is a one-way inbound connection without any permissions or ability to make changes.
         </p>
    
       </div>
