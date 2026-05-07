@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { supabase } from './lib/supabaseClient'
 
 const CHART_STYLES = {
   grid: 'var(--chart-grid)',
@@ -270,6 +271,54 @@ function ContributePanel() {
   )
 }
 
+function MyAppAuthPanel({
+  session,
+  authMode,
+  authEmail,
+  authPassword,
+  authPending,
+  authError,
+  authInfo,
+  onModeChange,
+  onEmailChange,
+  onPasswordChange,
+  onSubmit,
+  onSignOut,
+}) {
+  if (session) {
+    return (
+      <section className="chart-frame auth-panel">
+        <p className="chart-title">Signed in as {session.user?.email || 'user'}</p>
+        <div className="auth-actions">
+          <button type="button" className="login-button" onClick={onSignOut}>
+            Log Out
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="chart-frame auth-panel">
+      <p className="chart-title">Log in to set up your webhook secret</p>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <input type="email" value={authEmail} onChange={(event) => onEmailChange(event.target.value)} placeholder="Email" required />
+        <input type="password" value={authPassword} onChange={(event) => onPasswordChange(event.target.value)} placeholder="Password" required />
+        <div className="auth-actions">
+          <button type="submit" className="login-button" disabled={authPending}>
+            {authPending ? 'Working...' : authMode === 'signup' ? 'Create account' : 'Log in'}
+          </button>
+          <button type="button" className="page-button auth-switch" onClick={() => onModeChange(authMode === 'signup' ? 'login' : 'signup')}>
+            {authMode === 'signup' ? 'Have an account? Log in' : 'Need an account? Sign up'}
+          </button>
+        </div>
+        {authError ? <p className="auth-error">{authError}</p> : null}
+        {authInfo ? <p className="auth-info">{authInfo}</p> : null}
+      </form>
+    </section>
+  )
+}
+
 function App() {
   const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const [activePage, setActivePage] = useState('Data')
@@ -279,7 +328,17 @@ function App() {
   const [trendsData, setTrendsData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [authSession, setAuthSession] = useState(null)
+  const [authMode, setAuthMode] = useState('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authPending, setAuthPending] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [authInfo, setAuthInfo] = useState('')
+  const [myAppSetup, setMyAppSetup] = useState({ loading: false, error: '', secretConfigured: false, secretPreview: '' })
+  const [latestSecret, setLatestSecret] = useState('')
   const [overviewStatsRaw, setOverviewStatsRaw] = useState({ apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
+  const authToken = useMemo(() => authSession?.access_token || '', [authSession])
 
   const overviewStats = useMemo(
     () => [
@@ -306,6 +365,21 @@ function App() {
     applyTheme()
     media.addEventListener('change', applyTheme)
     return () => media.removeEventListener('change', applyTheme)
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return
+
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthSession(data.session || null)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthSession(session || null)
+      setAuthError('')
+      setAuthInfo('')
+    })
+    return () => listener.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -339,6 +413,90 @@ function App() {
     loadData()
   }, [apiBase, rangeDays])
 
+  useEffect(() => {
+    async function loadMyAppSetup() {
+      if (!authToken || activeTab !== 'My App' || activePage !== 'Data') return
+      try {
+        setMyAppSetup((state) => ({ ...state, loading: true, error: '' }))
+        const response = await fetch(`${apiBase}/api/my-app/setup`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to load setup')
+        }
+        setMyAppSetup({
+          loading: false,
+          error: '',
+          secretConfigured: Boolean(payload.secretConfigured),
+          secretPreview: payload.secretPreview || '',
+        })
+      } catch (setupError) {
+        setMyAppSetup((state) => ({ ...state, loading: false, error: setupError.message || 'Failed to load setup' }))
+      }
+    }
+
+    loadMyAppSetup()
+  }, [activePage, activeTab, apiBase, authToken])
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault()
+    if (!supabase) {
+      setAuthError('Missing Supabase frontend env vars.')
+      return
+    }
+    try {
+      setAuthPending(true)
+      setAuthError('')
+      setAuthInfo('')
+      if (authMode === 'signup') {
+        const { error: signUpError } = await supabase.auth.signUp({ email: authEmail, password: authPassword })
+        if (signUpError) throw signUpError
+        setAuthInfo('Account created. You can now log in.')
+        setAuthMode('login')
+        return
+      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+      if (signInError) throw signInError
+    } catch (submitError) {
+      setAuthError(submitError.message || 'Authentication failed')
+    } finally {
+      setAuthPending(false)
+    }
+  }
+
+  async function handleSignOut() {
+    if (!supabase) return
+    await supabase.auth.signOut()
+    setLatestSecret('')
+    setMyAppSetup({ loading: false, error: '', secretConfigured: false, secretPreview: '' })
+  }
+
+  async function handleSecretAction(action) {
+    if (!authToken) return
+    try {
+      setMyAppSetup((state) => ({ ...state, loading: true, error: '' }))
+      const endpoint = action === 'create' ? '/api/my-app/secret' : '/api/my-app/secret/rotate'
+      const response = await fetch(`${apiBase}${endpoint}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to manage secret')
+      }
+      setLatestSecret(payload.secret || '')
+      setMyAppSetup({
+        loading: false,
+        error: '',
+        secretConfigured: true,
+        secretPreview: payload.secretPreview || '',
+      })
+    } catch (secretError) {
+      setMyAppSetup((state) => ({ ...state, loading: false, error: secretError.message || 'Failed to manage secret' }))
+    }
+  }
+
   return (
     <main className="dashboard">
       <header className="topbar">
@@ -349,8 +507,19 @@ function App() {
               {page}
             </button>
           ))}
-          <button type="button" className="login-button">
-            Log In
+          <button
+            type="button"
+            className="login-button"
+            onClick={() => {
+              if (authSession) {
+                handleSignOut()
+                return
+              }
+              setActivePage('Data')
+              setActiveTab('My App')
+            }}
+          >
+            {authSession ? 'Log Out' : 'Log In'}
           </button>
         </nav>
       </header>
@@ -402,9 +571,43 @@ function App() {
 
       {!loading && !error && activePage === 'Data' && activeTab === 'My App' && (
         <section className="tab-panel">
+          <MyAppAuthPanel
+            session={authSession}
+            authMode={authMode}
+            authEmail={authEmail}
+            authPassword={authPassword}
+            authPending={authPending}
+            authError={authError}
+            authInfo={authInfo}
+            onModeChange={setAuthMode}
+            onEmailChange={setAuthEmail}
+            onPasswordChange={setAuthPassword}
+            onSubmit={handleAuthSubmit}
+            onSignOut={handleSignOut}
+          />
           <MyAppChartPlaceholder />
           <section className="chart-frame">
-            <p className="chart-title">Connect your app to see your under-24hrs share.</p>
+            {!authSession ? <p className="chart-title">Log in to generate a webhook secret for your app.</p> : null}
+            {authSession ? (
+              <div className="myapp-setup">
+                <p className="chart-title">
+                  {myAppSetup.secretConfigured ? `Webhook secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
+                </p>
+                <div className="auth-actions">
+                  {!myAppSetup.secretConfigured ? (
+                    <button type="button" className="login-button" onClick={() => handleSecretAction('create')} disabled={myAppSetup.loading}>
+                      {myAppSetup.loading ? 'Working...' : 'Generate secret'}
+                    </button>
+                  ) : (
+                    <button type="button" className="login-button" onClick={() => handleSecretAction('rotate')} disabled={myAppSetup.loading}>
+                      {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
+                    </button>
+                  )}
+                </div>
+                {latestSecret ? <p className="auth-info">Copy this now: {latestSecret}</p> : null}
+                {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
+              </div>
+            ) : null}
           </section>
           <StatsBar
             items={[
