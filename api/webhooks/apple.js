@@ -54,24 +54,29 @@ function parseAppleSignature(value) {
   if (typeof value !== 'string') return ''
   const trimmed = value.trim()
   if (!trimmed) return ''
-  const prefix = 'hmacsha256='
-  if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length)
-  return trimmed
+  const normalized = trimmed.toLowerCase()
+  if (normalized.startsWith('hmacsha256=')) return trimmed.slice('hmacsha256='.length).trim()
+  if (normalized.startsWith('sha256=')) return trimmed.slice('sha256='.length).trim()
+  return trimmed.replace(/^"|"$/g, '').trim()
 }
 
 function verifyAppleSignature(req, payload, signingSecret) {
   const signatureHeader = req.headers['x-apple-signature']
-  const providedHex = parseAppleSignature(signatureHeader)
-  if (!providedHex) {
+  const providedSignature = parseAppleSignature(signatureHeader)
+  if (!providedSignature) {
     const error = new Error('Missing x-apple-signature header')
     error.statusCode = 401
     throw error
   }
 
   const payloadString = JSON.stringify(payload)
-  const expectedHex = createHmac('sha256', signingSecret).update(payloadString, 'utf8').digest('hex')
-  const providedBuffer = Buffer.from(providedHex, 'hex')
-  const expectedBuffer = Buffer.from(expectedHex, 'hex')
+  const digestBuffer = createHmac('sha256', signingSecret).update(payloadString, 'utf8').digest()
+  const expectedHex = digestBuffer.toString('hex')
+  const expectedBase64 = digestBuffer.toString('base64')
+
+  const looksLikeHex = /^[0-9a-fA-F]+$/.test(providedSignature)
+  const providedBuffer = looksLikeHex ? Buffer.from(providedSignature, 'hex') : Buffer.from(providedSignature, 'base64')
+  const expectedBuffer = looksLikeHex ? Buffer.from(expectedHex, 'hex') : Buffer.from(expectedBase64, 'base64')
 
   if (
     providedBuffer.length === 0 ||
@@ -93,15 +98,15 @@ export default async function handler(req, res) {
 
   try {
     const payload = req.body || {}
+    if (payload?.data?.type === 'webhookPingCreated') {
+      return res.status(200).json({ ok: true, ping: true })
+    }
+
     const credentials = await resolveWebhookCredentials(req)
     verifyAppleSignature(req, payload, credentials.secret_value)
 
     const normalized = normalizePayload(payload)
     const userId = credentials.user_id
-
-    if (normalized.raw?.data?.type === 'webhookPingCreated') {
-      return res.status(200).json({ ok: true, ping: true })
-    }
 
     if (!normalized.event_id || !normalized.app_version_id || !normalized.new_state || !normalized.timestamp) {
       return res.status(400).json({ error: 'Missing required fields: event_id, app_version_id, new_state, timestamp' })
