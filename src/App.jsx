@@ -459,8 +459,11 @@ function AccountsPanel({
               </a>
               .
             </li>
+            <li>Create a new webhook.</li>
             <li>Name it for reference (for example, &quot;Review Stats&quot;).</li>
-            <li>Paste your endpoint URL:</li>
+            <li>Paste your endpoint URL.</li>
+            <li>Add the secret from above in ASC webhook &quot;Secret&quot;.</li>
+            <li>Set event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</li>
           </ol>
           <div className="copy-row">
             <p className="auth-info">
@@ -477,8 +480,6 @@ function AccountsPanel({
             </button>
             {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
           </div>
-          <p className="auth-info">Set event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</p>
-          <p className="auth-info">Use the same secret from this page in ASC webhook &quot;Secret&quot;.</p>
         </div>
         {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
