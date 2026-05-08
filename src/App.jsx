@@ -331,7 +331,7 @@ function ContributePanel() {
           <li>
             Go to{' '}
             <a
-              href="https://developer.apple.com/help/app-store-connect/manage-your-team/manage-webhooks/#:~:text=In%20Users-,and,-Access%2C%20click%20Integrations"
+              href="https://appstoreconnect.apple.com/access/integrations/webhooks"
               target="_blank"
               rel="noreferrer"
             >
@@ -339,7 +339,9 @@ function ContributePanel() {
             </a>
             .
           </li>
-          <li>Add a webhook using that secret and the provided URL.</li>
+          <li>Create a webhook and give it a name for your own reference (for example, &quot;Review Stats&quot;).</li>
+          <li>Add the provided URL and your generated secret.</li>
+          <li>Select the event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</li>
         </ol>
         <p>
           And you&apos;re done.<br />
@@ -376,9 +378,8 @@ function AccountsPanel({
   onSubmit,
   onSignOut,
 }) {
-  const webhookUrl = 'https://review-data-five.vercel.app/api/webhooks/apple'
-  const ascWebhookHelpUrl =
-    'https://developer.apple.com/help/app-store-connect/manage-your-team/manage-webhooks/#:~:text=In%20Users-,and,-Access%2C%20click%20Integrations'
+  const webhookUrl = myAppSetup.webhookUrl || 'Unavailable until account setup completes'
+  const ascWebhookHelpUrl = 'https://appstoreconnect.apple.com/access/integrations/webhooks'
   const [copiedField, setCopiedField] = useState('')
 
   async function copyValue(value, field) {
@@ -430,13 +431,19 @@ function AccountsPanel({
           <a href={ascWebhookHelpUrl} target="_blank" rel="noreferrer">
             App Store Connect webhooks
           </a>
-          , create a webhook using this secret and endpoint URL:
+          , create a webhook, name it for your reference (for example, &quot;Review Stats&quot;), and use this secret + endpoint URL:
         </p>
         <div className="copy-row">
           <p className="auth-info">
             <code>{webhookUrl}</code>
           </p>
-          <button type="button" className="copy-icon-button" aria-label="Copy webhook URL" onClick={() => copyValue(webhookUrl, 'url')}>
+          <button
+            type="button"
+            className="copy-icon-button"
+            aria-label="Copy webhook URL"
+            onClick={() => copyValue(webhookUrl, 'url')}
+            disabled={!myAppSetup.webhookUrl}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 1.5V9h4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
               <rect x="3" y="7" width="12" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
@@ -444,6 +451,7 @@ function AccountsPanel({
           </button>
           {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
         </div>
+        <p className="auth-info">Select event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</p>
         {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
     )
@@ -506,7 +514,7 @@ function App() {
   const [authPending, setAuthPending] = useState(false)
   const [authError, setAuthError] = useState('')
   const [authInfo, setAuthInfo] = useState('')
-  const [myAppSetup, setMyAppSetup] = useState({ loading: false, error: '', secretConfigured: false, secretPreview: '' })
+  const [myAppSetup, setMyAppSetup] = useState({ loading: false, error: '', secretConfigured: false, secretPreview: '', webhookUrl: '' })
   const [latestSecret, setLatestSecret] = useState('')
   const [overviewStatsRaw, setOverviewStatsRaw] = useState({ apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
   const authToken = useMemo(() => authSession?.access_token || '', [authSession])
@@ -609,6 +617,7 @@ function App() {
           error: '',
           secretConfigured: Boolean(payload.secretConfigured),
           secretPreview: payload.secretPreview || '',
+          webhookUrl: payload.webhookUrl || '',
         })
       } catch (setupError) {
         setMyAppSetup((state) => ({ ...state, loading: false, error: setupError.message || 'Failed to load setup' }))
@@ -649,7 +658,7 @@ function App() {
     if (!supabase) return
     await supabase.auth.signOut()
     setLatestSecret('')
-    setMyAppSetup({ loading: false, error: '', secretConfigured: false, secretPreview: '' })
+    setMyAppSetup({ loading: false, error: '', secretConfigured: false, secretPreview: '', webhookUrl: '' })
   }
 
   async function handleSecretAction(action) {
@@ -666,12 +675,13 @@ function App() {
         throw new Error(payload.error || 'Failed to manage secret')
       }
       setLatestSecret(payload.secret || '')
-      setMyAppSetup({
+      setMyAppSetup((state) => ({
+        ...state,
         loading: false,
         error: '',
         secretConfigured: true,
         secretPreview: payload.secretPreview || '',
-      })
+      }))
     } catch (secretError) {
       setMyAppSetup((state) => ({ ...state, loading: false, error: secretError.message || 'Failed to manage secret' }))
     }

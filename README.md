@@ -44,8 +44,8 @@ Optional:
 1. User signs in with Supabase email/password and receives a bearer token.
 2. Client calls `POST /api/my-app/secret` with `Authorization: Bearer <token>`.
 3. API returns a one-time secret value (store it securely).
-4. User configures App Store Connect webhook with that secret.
-5. `POST /api/webhooks/apple` validates `x-webhook-secret` against hashed secrets in `webhook_credentials`.
+4. User configures App Store Connect webhook with the provided per-user URL + secret.
+5. `POST /api/webhooks/apple?hook=...` resolves user by hook token and verifies `x-apple-signature` using that user secret.
 6. Matching webhook events are attributed to that user and ingested.
 
 Use `POST /api/my-app/secret/rotate` to invalidate the previous secret and issue a new one.

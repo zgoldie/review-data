@@ -70,6 +70,7 @@ create extension if not exists pgcrypto;
 create table if not exists app_connections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique,
+  webhook_token text unique,
   app_store_app_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -78,6 +79,7 @@ create table if not exists app_connections (
 create table if not exists webhook_credentials (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
+  secret_value text,
   secret_hash text not null unique,
   secret_prefix text not null,
   is_active boolean not null default true,
@@ -85,6 +87,13 @@ create table if not exists webhook_credentials (
   rotated_at timestamptz,
   revoked_at timestamptz
 );
+
+alter table app_connections add column if not exists webhook_token text;
+alter table webhook_credentials add column if not exists secret_value text;
+
+create unique index if not exists idx_app_connections_webhook_token
+  on app_connections(webhook_token)
+  where webhook_token is not null;
 
 create index if not exists idx_webhook_credentials_user_active
   on webhook_credentials(user_id, is_active, created_at desc);

@@ -1,6 +1,6 @@
 import { pgQuery } from '../_lib/db.js'
 import { recomputeDurationsForVersion } from '../_lib/durations.js'
-import { hashWebhookSecret } from '../_lib/secrets.js'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 
 const VALID_STATES = new Set([
   'PREPARE_FOR_SUBMISSION',
@@ -10,33 +10,33 @@ const VALID_STATES = new Set([
   'REJECTED',
 ])
 
-async function resolveUserId(req, payload) {
-  const providedSecret = req.headers['x-webhook-secret'] || payload.secret
-  if (typeof providedSecret !== 'string' || !providedSecret) {
-    const error = new Error('Missing webhook secret')
+async function resolveWebhookCredentials(req) {
+  const hookToken = typeof req.query?.hook === 'string' ? req.query.hook : ''
+  if (!hookToken) {
+    const error = new Error('Missing webhook hook token')
     error.statusCode = 401
     throw error
   }
 
-  const secretHash = hashWebhookSecret(providedSecret)
   const result = await pgQuery(
-    `SELECT user_id
-     FROM webhook_credentials
-     WHERE secret_hash = $1
-       AND is_active = TRUE
-       AND revoked_at IS NULL
+    `SELECT wc.user_id, wc.secret_value
+     FROM webhook_credentials wc
+     JOIN app_connections ac ON ac.user_id = wc.user_id
+     WHERE ac.webhook_token = $1
+       AND wc.is_active = TRUE
+       AND wc.revoked_at IS NULL
      LIMIT 1`,
-    [secretHash],
+    [hookToken],
   )
 
-  const userId = result.rows[0]?.user_id
-  if (!userId) {
-    const error = new Error('Invalid webhook secret')
+  const credentials = result.rows[0]
+  if (!credentials?.user_id || !credentials?.secret_value) {
+    const error = new Error('Invalid webhook hook token')
     error.statusCode = 401
     throw error
   }
 
-  return userId
+  return credentials
 }
 
 function normalizePayload(payload) {
@@ -50,6 +50,41 @@ function normalizePayload(payload) {
   }
 }
 
+function parseAppleSignature(value) {
+  if (typeof value !== 'string') return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const prefix = 'hmacsha256='
+  if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length)
+  return trimmed
+}
+
+function verifyAppleSignature(req, payload, signingSecret) {
+  const signatureHeader = req.headers['x-apple-signature']
+  const providedHex = parseAppleSignature(signatureHeader)
+  if (!providedHex) {
+    const error = new Error('Missing x-apple-signature header')
+    error.statusCode = 401
+    throw error
+  }
+
+  const payloadString = JSON.stringify(payload)
+  const expectedHex = createHmac('sha256', signingSecret).update(payloadString, 'utf8').digest('hex')
+  const providedBuffer = Buffer.from(providedHex, 'hex')
+  const expectedBuffer = Buffer.from(expectedHex, 'hex')
+
+  if (
+    providedBuffer.length === 0 ||
+    expectedBuffer.length === 0 ||
+    providedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(providedBuffer, expectedBuffer)
+  ) {
+    const error = new Error('Invalid x-apple-signature')
+    error.statusCode = 401
+    throw error
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST'])
@@ -57,8 +92,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const normalized = normalizePayload(req.body || {})
-    const userId = await resolveUserId(req, normalized.raw)
+    const payload = req.body || {}
+    const credentials = await resolveWebhookCredentials(req)
+    verifyAppleSignature(req, payload, credentials.secret_value)
+
+    const normalized = normalizePayload(payload)
+    const userId = credentials.user_id
+
+    if (normalized.raw?.data?.type === 'webhookPingCreated') {
+      return res.status(200).json({ ok: true, ping: true })
+    }
 
     if (!normalized.event_id || !normalized.app_version_id || !normalized.new_state || !normalized.timestamp) {
       return res.status(400).json({ error: 'Missing required fields: event_id, app_version_id, new_state, timestamp' })

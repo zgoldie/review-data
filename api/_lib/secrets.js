@@ -8,6 +8,10 @@ export function generateWebhookSecret() {
   return `asc_${randomBytes(24).toString('base64url')}`
 }
 
+export function generateWebhookToken() {
+  return `hook_${randomBytes(18).toString('base64url')}`
+}
+
 export function toSecretPreview(secret) {
   return `${secret.slice(0, 8)}...`
 }

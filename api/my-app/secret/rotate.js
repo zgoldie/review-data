@@ -29,9 +29,9 @@ export default async function handler(req, res) {
       )
 
       await pgQuery(
-        `INSERT INTO webhook_credentials (user_id, secret_hash, secret_prefix, is_active)
-         VALUES ($1::uuid, $2, $3, TRUE)`,
-        [user.id, secretHash, secretPreview],
+        `INSERT INTO webhook_credentials (user_id, secret_value, secret_hash, secret_prefix, is_active)
+         VALUES ($1::uuid, $2, $3, $4, TRUE)`,
+        [user.id, secret, secretHash, secretPreview],
       )
 
       await pgQuery('COMMIT')
