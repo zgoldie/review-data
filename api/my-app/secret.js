@@ -1,6 +1,6 @@
 import { requireAuthenticatedUser } from '../_lib/auth.js'
 import { ensureAppConnection, getActiveCredential } from '../_lib/myApp.js'
-import { generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../_lib/secrets.js'
+import { encryptWebhookSecret, generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../_lib/secrets.js'
 import { pgQuery } from '../_lib/db.js'
 
 export default async function handler(req, res) {
@@ -22,13 +22,14 @@ export default async function handler(req, res) {
     }
 
     const secret = generateWebhookSecret()
+    const secretEncrypted = encryptWebhookSecret(secret)
     const secretHash = hashWebhookSecret(secret)
     const secretPreview = toSecretPreview(secret)
 
     await pgQuery(
-      `INSERT INTO webhook_credentials (user_id, secret_value, secret_hash, secret_prefix, is_active)
+      `INSERT INTO webhook_credentials (user_id, secret_encrypted, secret_hash, secret_prefix, is_active)
        VALUES ($1::uuid, $2, $3, $4, TRUE)`,
-      [user.id, secret, secretHash, secretPreview],
+      [user.id, secretEncrypted, secretHash, secretPreview],
     )
 
     return res.status(201).json({

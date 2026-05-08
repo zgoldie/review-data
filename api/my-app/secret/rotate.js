@@ -1,7 +1,7 @@
 import { requireAuthenticatedUser } from '../../_lib/auth.js'
 import { ensureAppConnection } from '../../_lib/myApp.js'
-import { generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../../_lib/secrets.js'
-import { pgQuery } from '../../_lib/db.js'
+import { encryptWebhookSecret, generateWebhookSecret, hashWebhookSecret, toSecretPreview } from '../../_lib/secrets.js'
+import { withPgTransaction } from '../../_lib/db.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,12 +14,12 @@ export default async function handler(req, res) {
     await ensureAppConnection(user.id)
 
     const secret = generateWebhookSecret()
+    const secretEncrypted = encryptWebhookSecret(secret)
     const secretHash = hashWebhookSecret(secret)
     const secretPreview = toSecretPreview(secret)
 
-    await pgQuery('BEGIN')
-    try {
-      await pgQuery(
+    await withPgTransaction(async (client) => {
+      await client.query(
         `UPDATE webhook_credentials
          SET is_active = FALSE, revoked_at = NOW(), rotated_at = NOW()
          WHERE user_id = $1::uuid
@@ -28,17 +28,12 @@ export default async function handler(req, res) {
         [user.id],
       )
 
-      await pgQuery(
-        `INSERT INTO webhook_credentials (user_id, secret_value, secret_hash, secret_prefix, is_active)
+      await client.query(
+        `INSERT INTO webhook_credentials (user_id, secret_encrypted, secret_hash, secret_prefix, is_active)
          VALUES ($1::uuid, $2, $3, $4, TRUE)`,
-        [user.id, secret, secretHash, secretPreview],
+        [user.id, secretEncrypted, secretHash, secretPreview],
       )
-
-      await pgQuery('COMMIT')
-    } catch (transactionError) {
-      await pgQuery('ROLLBACK')
-      throw transactionError
-    }
+    })
 
     return res.status(201).json({
       ok: true,

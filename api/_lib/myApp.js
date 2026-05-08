@@ -4,12 +4,12 @@ import { generateWebhookToken } from './secrets.js'
 export async function ensureAppConnection(userId) {
   const token = generateWebhookToken()
   const result = await pgQuery(
-    `INSERT INTO app_connections (user_id)
-     VALUES ($1::uuid)
+    `INSERT INTO app_connections (user_id, webhook_token)
+     VALUES ($1::uuid, $2)
      ON CONFLICT (user_id)
      DO UPDATE
        SET updated_at = NOW(),
-           webhook_token = COALESCE(app_connections.webhook_token, $2)
+           webhook_token = COALESCE(app_connections.webhook_token, EXCLUDED.webhook_token)
      RETURNING id, user_id, webhook_token`,
     [userId, token],
   )

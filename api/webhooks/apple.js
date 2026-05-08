@@ -1,6 +1,13 @@
 import { pgQuery } from '../_lib/db.js'
 import { recomputeDurationsForVersion } from '../_lib/durations.js'
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { decryptWebhookSecret } from '../_lib/secrets.js'
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
 
 const VALID_STATES = new Set([
   'PREPARE_FOR_SUBMISSION',
@@ -19,7 +26,7 @@ async function resolveWebhookCredentials(req) {
   }
 
   const result = await pgQuery(
-    `SELECT wc.user_id, wc.secret_value
+    `SELECT wc.user_id, wc.secret_encrypted, wc.secret_value
      FROM webhook_credentials wc
      JOIN app_connections ac ON ac.user_id = wc.user_id
      WHERE ac.webhook_token = $1
@@ -30,7 +37,7 @@ async function resolveWebhookCredentials(req) {
   )
 
   const credentials = result.rows[0]
-  if (!credentials?.user_id || !credentials?.secret_value) {
+  if (!credentials?.user_id || (!credentials?.secret_encrypted && !credentials?.secret_value)) {
     const error = new Error('Invalid webhook hook token')
     error.statusCode = 401
     throw error
@@ -60,7 +67,15 @@ function parseAppleSignature(value) {
   return trimmed.replace(/^"|"$/g, '').trim()
 }
 
-function verifyAppleSignature(req, payload, signingSecret) {
+async function readRawBody(req) {
+  const chunks = []
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  }
+  return Buffer.concat(chunks)
+}
+
+function verifyAppleSignature(req, rawPayload, signingSecret) {
   const signatureHeader = req.headers['x-apple-signature']
   const providedSignature = parseAppleSignature(signatureHeader)
   if (!providedSignature) {
@@ -69,8 +84,7 @@ function verifyAppleSignature(req, payload, signingSecret) {
     throw error
   }
 
-  const payloadString = JSON.stringify(payload)
-  const digestBuffer = createHmac('sha256', signingSecret).update(payloadString, 'utf8').digest()
+  const digestBuffer = createHmac('sha256', signingSecret).update(rawPayload).digest()
   const expectedHex = digestBuffer.toString('hex')
   const expectedBase64 = digestBuffer.toString('base64')
 
@@ -97,13 +111,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const payload = req.body || {}
+    const rawPayload = await readRawBody(req)
+    let payload = {}
+    try {
+      payload = rawPayload.length ? JSON.parse(rawPayload.toString('utf8')) : {}
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON payload' })
+    }
+
     if (payload?.data?.type === 'webhookPingCreated') {
       return res.status(200).json({ ok: true, ping: true })
     }
 
     const credentials = await resolveWebhookCredentials(req)
-    verifyAppleSignature(req, payload, credentials.secret_value)
+    const signingSecret = credentials.secret_encrypted ? decryptWebhookSecret(credentials.secret_encrypted) : credentials.secret_value
+    verifyAppleSignature(req, rawPayload, signingSecret)
 
     const normalized = normalizePayload(payload)
     const userId = credentials.user_id

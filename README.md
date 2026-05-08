@@ -17,16 +17,22 @@ Public dashboard and webhook-backed metrics for App Store review timing.
 
 ## Required environment variables
 
-The Vercel + Supabase integration normally injects these:
+The Vercel + Supabase integration normally injects these database vars:
 
 - `POSTGRES_URL` (preferred)
 - `POSTGRES_PRISMA_URL` (fallback)
 - `POSTGRES_URL_NON_POOLING` (fallback)
 
+Auth + webhook vars required by this app:
+
+- `SUPABASE_URL` - used by API routes for bearer token verification.
+- `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` - used by API routes to call Supabase Auth.
+- `VITE_PUBLIC_SUPABASE_URL` - used by frontend auth client.
+- `VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `VITE_PUBLIC_SUPABASE_ANON_KEY`) - used by frontend auth client.
+- `WEBHOOK_SECRET_ENCRYPTION_KEY` - base64-encoded 32-byte key used to encrypt webhook secrets at rest.
+
 Optional:
 
-- `SUPABASE_URL` - used for auth token verification in API routes
-- `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` - used to verify bearer tokens via Supabase Auth
 - `VITE_API_BASE_URL` - only needed if frontend should call an external API host instead of same-origin `/api`.
 
 ## API routes
@@ -55,6 +61,10 @@ Use `POST /api/my-app/secret/rotate` to invalidate the previous secret and issue
 - `npm run dev` - Vite frontend + legacy local Express API
 - `npm run build` - frontend production build
 - `npm run lint` - lint project files
+
+## Local env template
+
+Copy `.env.example` to `.env.local` and fill values.
 
 ## Notes
 

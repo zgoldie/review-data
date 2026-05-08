@@ -1,4 +1,4 @@
-import { pgQuery } from './db.js'
+import { pgQuery, withPgTransaction } from './db.js'
 
 const TERMINAL_STATES = new Set(['READY_FOR_SALE', 'REJECTED'])
 
@@ -88,12 +88,11 @@ export async function recomputeDurationsForVersion(userId, appVersionId) {
   )
   const cycles = buildCycles(eventsResult.rows)
 
-  await pgQuery('BEGIN')
-  try {
-    await pgQuery('DELETE FROM version_durations WHERE user_id = $1 AND app_version_id = $2', [userId, appVersionId])
+  await withPgTransaction(async (client) => {
+    await client.query('DELETE FROM version_durations WHERE user_id = $1 AND app_version_id = $2', [userId, appVersionId])
 
     for (const cycle of cycles) {
-      await pgQuery(
+      await client.query(
         `INSERT INTO version_durations (
           user_id,
           app_version_id,
@@ -124,12 +123,7 @@ export async function recomputeDurationsForVersion(userId, appVersionId) {
         ],
       )
     }
-
-    await pgQuery('COMMIT')
-  } catch (error) {
-    await pgQuery('ROLLBACK')
-    throw error
-  }
+  })
 
   return cycles.length
 }

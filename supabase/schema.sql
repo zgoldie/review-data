@@ -80,6 +80,7 @@ create table if not exists webhook_credentials (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   secret_value text,
+  secret_encrypted text,
   secret_hash text not null unique,
   secret_prefix text not null,
   is_active boolean not null default true,
@@ -90,6 +91,7 @@ create table if not exists webhook_credentials (
 
 alter table app_connections add column if not exists webhook_token text;
 alter table webhook_credentials add column if not exists secret_value text;
+alter table webhook_credentials add column if not exists secret_encrypted text;
 
 create unique index if not exists idx_app_connections_webhook_token
   on app_connections(webhook_token)
@@ -104,6 +106,10 @@ create index if not exists idx_webhook_credentials_secret_active
 
 alter table app_connections enable row level security;
 alter table webhook_credentials enable row level security;
+alter table raw_events enable row level security;
+alter table version_durations enable row level security;
+alter table summary_bucket_stats enable row level security;
+alter table summary_trends enable row level security;
 
 drop policy if exists app_connections_select_own on app_connections;
 create policy app_connections_select_own

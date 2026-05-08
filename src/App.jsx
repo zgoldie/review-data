@@ -327,7 +327,6 @@ function ContributePanel() {
         <h2>How to contribute</h2>
         <ol className="contribute-steps">
           <li>Sign up.</li>
-          <li>Receive a secret.</li>
           <li>
             Go to{' '}
             <a
@@ -339,13 +338,12 @@ function ContributePanel() {
             </a>
             .
           </li>
-          <li>Create a webhook and give it a name for your own reference (for example, &quot;Review Stats&quot;).</li>
-          <li>Add the provided URL and your generated secret.</li>
-          <li>Select the event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</li>
+          <li>Create a webhook and give it a name</li>
+          <li>Add the provided URL and secret.</li>
+          <li>Select the two event triggers.</li>
         </ol>
         <p>
-          And you&apos;re done.<br />
-          Your data will pull through, and you'll be able to see the trend for your own reviews.
+          And you&apos;re done. Your data will pull through, and you'll be able to see the trend for your own reviews.
         </p>
 
         <h2>Data Safety</h2>
@@ -658,13 +656,6 @@ function App() {
     } finally {
       setAuthPending(false)
     }
-  }
-
-  async function handleSignOut() {
-    if (!supabase) return
-    await supabase.auth.signOut()
-    setLatestSecret('')
-    setMyAppSetup({ loading: false, error: '', secretConfigured: false, secretPreview: '', webhookUrl: '' })
   }
 
   async function handleSecretAction(action) {
