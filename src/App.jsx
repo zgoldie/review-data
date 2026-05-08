@@ -361,23 +361,6 @@ function ContributePanel() {
   )
 }
 
-function CopyIcon({ copied }) {
-  if (copied) {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="8" y="4" width="11" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="5" y="7" width="11" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  )
-}
-
 function AccountsPanel({
   session,
   authMode,
@@ -393,7 +376,6 @@ function AccountsPanel({
   onEmailChange,
   onPasswordChange,
   onSubmit,
-  onSignOut,
 }) {
   const webhookUrl = myAppSetup.webhookUrl || 'Unavailable until account setup completes'
   const ascWebhookHelpUrl = 'https://appstoreconnect.apple.com/access/integrations/webhooks'
@@ -429,36 +411,31 @@ function AccountsPanel({
                 {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
               </button>
             )}
-            <button type="button" className="login-button" onClick={onSignOut}>
-              Log Out
-            </button>
           </div>
           {latestSecret ? (
             <div className="copy-row">
               <p className="auth-info">Copy this now: {latestSecret}</p>
               <button
                 type="button"
-                className={`copy-icon-button ${copiedField === 'secret' ? 'is-copied' : ''}`}
+                className={`copy-text-button ${copiedField === 'secret' ? 'is-copied' : ''}`}
                 aria-label="Copy secret"
                 onClick={() => copyValue(latestSecret, 'secret')}
               >
-                <CopyIcon copied={copiedField === 'secret'} />
+                Copy
               </button>
               {copiedField === 'secret' ? <span className="copy-feedback">Copied</span> : null}
             </div>
           ) : null}
           <div className="copy-row">
-            <p className="auth-info">
-              Endpoint URL: <code>{webhookUrl}</code>
-            </p>
+            <p className="chart-title">Current endpoint URL: {webhookUrl}</p>
             <button
               type="button"
-              className={`copy-icon-button ${copiedField === 'url' ? 'is-copied' : ''}`}
+              className={`copy-text-button ${copiedField === 'url' ? 'is-copied' : ''}`}
               aria-label="Copy webhook URL"
               onClick={() => copyValue(webhookUrl, 'url')}
               disabled={!myAppSetup.webhookUrl}
             >
-              <CopyIcon copied={copiedField === 'url'} />
+              Copy
             </button>
             {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
           </div>
@@ -830,7 +807,6 @@ function App() {
           onEmailChange={setAuthEmail}
           onPasswordChange={setAuthPassword}
           onSubmit={handleAuthSubmit}
-          onSignOut={handleSignOut}
         />
       )}
     </main>

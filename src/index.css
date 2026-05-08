@@ -224,40 +224,37 @@ body {
   flex-wrap: wrap;
 }
 
-.copy-icon-button {
+.copy-text-button {
   appearance: none;
   border: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text);
-  width: 28px;
-  height: 28px;
-  padding: 3px;
+  padding: 3px 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
   transition: background 120ms ease, transform 120ms ease;
 }
 
-.copy-icon-button svg {
-  width: 15px;
-  height: 15px;
-}
-
-.copy-icon-button:hover {
+.copy-text-button:hover {
   background: var(--bg-surface);
 }
 
-.copy-icon-button:active {
+.copy-text-button:active {
   transform: translateY(1px);
 }
 
-.copy-icon-button:disabled {
+.copy-text-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.copy-icon-button.is-copied {
+.copy-text-button.is-copied {
   background: var(--bg-surface);
 }
 
