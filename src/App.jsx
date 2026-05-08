@@ -415,7 +415,7 @@ function AccountsPanel({
     return (
       <section className="auth-panel">
         <div className="auth-block">
-          <p className="auth-section-title">Webhook Secret</p>
+          <p className="auth-section-title">Webhook Credentials</p>
           <p className="chart-title">
             {myAppSetup.secretConfigured ? `Current secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
           </p>
@@ -447,6 +447,21 @@ function AccountsPanel({
               {copiedField === 'secret' ? <span className="copy-feedback">Copied</span> : null}
             </div>
           ) : null}
+          <div className="copy-row">
+            <p className="auth-info">
+              Endpoint URL: <code>{webhookUrl}</code>
+            </p>
+            <button
+              type="button"
+              className={`copy-icon-button ${copiedField === 'url' ? 'is-copied' : ''}`}
+              aria-label="Copy webhook URL"
+              onClick={() => copyValue(webhookUrl, 'url')}
+              disabled={!myAppSetup.webhookUrl}
+            >
+              <CopyIcon copied={copiedField === 'url'} />
+            </button>
+            {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
+          </div>
         </div>
 
         <div className="auth-block">
@@ -461,25 +476,10 @@ function AccountsPanel({
             </li>
             <li>Create a new webhook.</li>
             <li>Name it for reference (for example, &quot;Review Stats&quot;).</li>
-            <li>Paste your endpoint URL.</li>
+            <li>Paste your endpoint URL from above.</li>
             <li>Add the secret from above in ASC webhook &quot;Secret&quot;.</li>
             <li>Set event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</li>
           </ol>
-          <div className="copy-row">
-            <p className="auth-info">
-              <code>{webhookUrl}</code>
-            </p>
-            <button
-              type="button"
-              className={`copy-icon-button ${copiedField === 'url' ? 'is-copied' : ''}`}
-              aria-label="Copy webhook URL"
-              onClick={() => copyValue(webhookUrl, 'url')}
-              disabled={!myAppSetup.webhookUrl}
-            >
-              <CopyIcon copied={copiedField === 'url'} />
-            </button>
-            {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
-          </div>
         </div>
         {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
