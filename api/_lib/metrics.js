@@ -54,14 +54,22 @@ function toBuckets(hoursList) {
   }))
 }
 
-async function getRecentCycles(days = 30) {
+async function getRecentCycles(days = 30, userId = null) {
+  const params = [days]
+  let userFilter = ''
+  if (userId) {
+    params.push(userId)
+    userFilter = `AND user_id = $${params.length}`
+  }
+
   const result = await pgQuery(
     `SELECT user_id, app_version_id, final_state, completed_at, build_hours, queue_hours, review_hours
      FROM version_durations
      WHERE completed_at IS NOT NULL
        AND completed_at >= NOW() - ($1::text || ' days')::interval
+       ${userFilter}
      ORDER BY completed_at DESC`,
-    [days],
+    params,
   )
   return result.rows.map((row) => ({
     ...row,
@@ -91,8 +99,8 @@ function computeStats(rows, days) {
   }
 }
 
-export async function getOverviewMetrics(days = 30) {
-  const rows = await getRecentCycles(days)
+export async function getOverviewMetrics(days = 30, userId = null) {
+  const rows = await getRecentCycles(days, userId)
   const reviewHours = rows.map((row) => totalHours(row)).filter((value) => typeof value === 'number')
   return {
     distribution: toBuckets(reviewHours),
@@ -100,7 +108,14 @@ export async function getOverviewMetrics(days = 30) {
   }
 }
 
-export async function getTrendMetrics(months = 9) {
+export async function getTrendMetrics(months = 9, userId = null) {
+  const params = [months]
+  let userFilter = ''
+  if (userId) {
+    params.push(userId)
+    userFilter = `AND user_id = $${params.length}`
+  }
+
   const result = await pgQuery(
     `SELECT completed_at, build_hours, queue_hours, review_hours
      FROM version_durations
@@ -109,8 +124,9 @@ export async function getTrendMetrics(months = 9) {
        AND queue_hours IS NOT NULL
        AND review_hours IS NOT NULL
        AND completed_at >= NOW() - ($1::text || ' months')::interval
+       ${userFilter}
      ORDER BY completed_at ASC`,
-    [months],
+    params,
   )
 
   const monthMap = new Map()

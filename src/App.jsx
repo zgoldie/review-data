@@ -263,7 +263,7 @@ function TrendsChart({ data }) {
   )
 }
 
-function MyAppChartPlaceholder() {
+function MyAppChartPlaceholder({ showConnectOverlay = true, onConnectClick }) {
   const monthTicks = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May']
   const scaffoldData = monthTicks.map((month) => ({ month, value: 0 }))
   const yTicks = [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 240]
@@ -281,7 +281,11 @@ function MyAppChartPlaceholder() {
             </ComposedChart>
           </ResponsiveContainer>
         </ScrollableChartArea>
-        <div className="myapp-empty">Connect Your App</div>
+        {showConnectOverlay ? (
+          <button type="button" className="myapp-empty" onClick={onConnectClick}>
+            Connect Your App
+          </button>
+        ) : null}
       </div>
     </div>
   )
@@ -520,6 +524,8 @@ function App() {
   const [authInfo, setAuthInfo] = useState('')
   const [myAppSetup, setMyAppSetup] = useState({ loading: false, error: '', secretConfigured: false, secretPreview: '', webhookUrl: '' })
   const [latestSecret, setLatestSecret] = useState('')
+  const [myAppTrendsData, setMyAppTrendsData] = useState([])
+  const [myAppStatsRaw, setMyAppStatsRaw] = useState({ apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
   const [overviewStatsRaw, setOverviewStatsRaw] = useState({ apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
   const authToken = useMemo(() => authSession?.access_token || '', [authSession])
 
@@ -536,6 +542,16 @@ function App() {
   const overviewClaimText = useMemo(
     () => `Apple claims 90% under 24hrs. Currently ${overviewStatsRaw.under24hrs}%`,
     [overviewStatsRaw.under24hrs],
+  )
+  const myAppStats = useMemo(
+    () => [
+      `Apps: ${myAppStatsRaw.apps}`,
+      `Reviews: ${myAppStatsRaw.reviews}`,
+      `Under 24hrs: ${myAppStatsRaw.under24hrs}%`,
+      `Under 48hrs: ${myAppStatsRaw.under48hrs}%`,
+      `Rejected: ${myAppStatsRaw.rejected}%`,
+    ],
+    [myAppStatsRaw],
   )
 
   useEffect(() => {
@@ -630,6 +646,36 @@ function App() {
 
     loadMyAppSetup()
   }, [activePage, apiBase, authToken])
+
+  useEffect(() => {
+    async function loadMyAppMetrics() {
+      if (!authToken || activePage !== 'Data' || activeTab !== 'My App') return
+      try {
+        const [overviewRes, trendsRes] = await Promise.all([
+          fetch(`${apiBase}/api/my-app/metrics/overview?rangeDays=${rangeDays}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }),
+          fetch(`${apiBase}/api/my-app/metrics/trends?months=9`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }),
+        ])
+
+        if (!overviewRes.ok || !trendsRes.ok) {
+          throw new Error('Failed to load my app metrics')
+        }
+
+        const overviewPayload = await overviewRes.json()
+        const trendsPayload = await trendsRes.json()
+        setMyAppStatsRaw(overviewPayload.stats || { apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
+        setMyAppTrendsData(toStackedTrendData(trendsPayload.trends || []))
+      } catch {
+        setMyAppStatsRaw({ apps: 0, reviews: 0, range: 'last 30 days', under24hrs: 0, under48hrs: 0, rejected: 0 })
+        setMyAppTrendsData([])
+      }
+    }
+
+    loadMyAppMetrics()
+  }, [activePage, activeTab, apiBase, authToken, rangeDays])
 
   async function handleAuthSubmit(event) {
     event.preventDefault()
@@ -754,23 +800,25 @@ function App() {
 
       {!loading && !error && activePage === 'Data' && activeTab === 'My App' && (
         <section className="tab-panel">
-          <MyAppChartPlaceholder />
+          {authSession ? (
+            <TrendsChart data={myAppTrendsData} />
+          ) : (
+            <MyAppChartPlaceholder
+              showConnectOverlay
+              onConnectClick={() => {
+                setAuthMode('signup')
+                setActivePage('Account')
+              }}
+            />
+          )}
           <section className="chart-frame">
             <p className="chart-title">
               {authSession
-                ? 'Open Accounts above to manage your webhook secret, then watch your app-specific trend populate.'
+                ? 'This chart shows metrics from events associated with your webhook token.'
                 : 'Log in from Accounts above to generate a webhook secret for your app.'}
             </p>
           </section>
-          <StatsBar
-            items={[
-              'Apps: 1',
-              'Reviews: -',
-              'Under 24hrs: -',
-              'Under 48hrs: -',
-              'Rejected: -',
-            ]}
-          />
+          <StatsBar items={authSession ? myAppStats : ['Apps: -', 'Reviews: -', 'Under 24hrs: -', 'Under 48hrs: -', 'Rejected: -']} />
         </section>
       )}
 

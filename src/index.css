@@ -542,6 +542,7 @@ select {
 }
 
 .myapp-empty {
+  appearance: none;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -549,8 +550,14 @@ select {
   border: 1px solid var(--border);
   padding: 10px 14px;
   font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
   background: var(--bg-panel);
-  pointer-events: none;
+  cursor: pointer;
+}
+
+.myapp-empty:hover {
+  background: var(--bg-surface);
 }
 
 .trends-tooltip {
