@@ -54,6 +54,21 @@ body {
   color: var(--text);
 }
 
+button:focus,
+select:focus,
+input:focus,
+a:focus {
+  outline: none;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--border);
+  outline-offset: 1px;
+}
+
 #root {
   max-width: 1200px;
   margin: 0 auto;
