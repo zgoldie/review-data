@@ -68,7 +68,7 @@ body {
 
 .topbar {
   border: 1px solid var(--border);
-  background: var(--bg-topbar);
+  background: var(--bg-surface);
   padding: 12px 14px;
   display: flex;
   justify-content: space-between;
@@ -388,7 +388,7 @@ select {
 .tabs {
   border: 1px solid var(--border);
   border-bottom: 0;
-  background: var(--bg-topbar);
+  background: var(--bg-surface);
   display: flex;
   gap: 0;
   margin-bottom: 0;
