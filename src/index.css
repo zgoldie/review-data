@@ -87,7 +87,7 @@ body {
 .page-nav {
   display: inline-flex;
   align-items: center;
-  gap: 18px;
+  gap: 26px;
 }
 
 .page-button {

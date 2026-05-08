@@ -470,6 +470,17 @@ function AccountsPanel({
   )
 }
 
+function AccountPage(props) {
+  return (
+    <section className="about-panel">
+      <div className="about-content">
+        <h2>Account</h2>
+        <AccountsPanel {...props} />
+      </div>
+    </section>
+  )
+}
+
 function App() {
   async function parseJsonResponse(response) {
     const contentType = response.headers.get('content-type') || ''
@@ -483,7 +494,6 @@ function App() {
   const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const [activePage, setActivePage] = useState('Data')
   const [activeTab, setActiveTab] = useState('Overview')
-  const [isAccountsOpen, setIsAccountsOpen] = useState(false)
   const [rangeDays, setRangeDays] = useState(30)
   const [overviewData, setOverviewData] = useState(EMPTY_DISTRIBUTION)
   const [trendsData, setTrendsData] = useState([])
@@ -536,9 +546,7 @@ function App() {
       window.location.hash.includes('type=signup') ||
       window.location.search.includes('type=signup')
     if (openedFromAuthRedirect) {
-      setIsAccountsOpen(true)
-      setActivePage('Data')
-      setActiveTab('My App')
+      setActivePage('Account')
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -586,7 +594,7 @@ function App() {
 
   useEffect(() => {
     async function loadMyAppSetup() {
-      if (!authToken || !isAccountsOpen) return
+      if (!authToken || activePage !== 'Account') return
       try {
         setMyAppSetup((state) => ({ ...state, loading: true, error: '' }))
         const response = await fetch(`${apiBase}/api/my-app/setup`, {
@@ -608,7 +616,7 @@ function App() {
     }
 
     loadMyAppSetup()
-  }, [apiBase, authToken, isAccountsOpen])
+  }, [activePage, apiBase, authToken])
 
   async function handleAuthSubmit(event) {
     event.preventDefault()
@@ -625,7 +633,7 @@ function App() {
         if (signUpError) throw signUpError
         setAuthInfo('Account created. You can now log in.')
         setAuthMode('login')
-        setIsAccountsOpen(true)
+        setActivePage('Account')
         return
       }
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
@@ -684,41 +692,13 @@ function App() {
             className="login-button"
             onClick={() => {
               if (!authSession) setAuthMode('login')
-              setIsAccountsOpen((current) => !current)
+              setActivePage('Account')
             }}
           >
             {authSession ? 'Accounts' : 'Log In'}
           </button>
         </nav>
       </header>
-
-      {isAccountsOpen ? (
-        <section className="chart-frame accounts-panel">
-          <div className="accounts-panel-header">
-            <p className="chart-title">Account</p>
-            <button type="button" className="accounts-close" onClick={() => setIsAccountsOpen(false)}>
-              Close
-            </button>
-          </div>
-          <AccountsPanel
-            session={authSession}
-            authMode={authMode}
-            authEmail={authEmail}
-            authPassword={authPassword}
-            authPending={authPending}
-            authError={authError}
-            authInfo={authInfo}
-            myAppSetup={myAppSetup}
-            latestSecret={latestSecret}
-            onSecretAction={handleSecretAction}
-            onModeChange={setAuthMode}
-            onEmailChange={setAuthEmail}
-            onPasswordChange={setAuthPassword}
-            onSubmit={handleAuthSubmit}
-            onSignOut={handleSignOut}
-          />
-        </section>
-      ) : null}
 
       {activePage === 'Data' && (
       <nav className="tabs" aria-label="Dashboard tabs">
@@ -793,6 +773,26 @@ function App() {
 
       {activePage === 'Add Data' && (
         <ContributePanel />
+      )}
+
+      {activePage === 'Account' && (
+        <AccountPage
+          session={authSession}
+          authMode={authMode}
+          authEmail={authEmail}
+          authPassword={authPassword}
+          authPending={authPending}
+          authError={authError}
+          authInfo={authInfo}
+          myAppSetup={myAppSetup}
+          latestSecret={latestSecret}
+          onSecretAction={handleSecretAction}
+          onModeChange={setAuthMode}
+          onEmailChange={setAuthEmail}
+          onPasswordChange={setAuthPassword}
+          onSubmit={handleAuthSubmit}
+          onSignOut={handleSignOut}
+        />
       )}
     </main>
   )
