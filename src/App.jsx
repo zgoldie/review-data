@@ -361,6 +361,23 @@ function ContributePanel() {
   )
 }
 
+function CopyIcon({ copied }) {
+  if (copied) {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="square" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="8" y="4" width="11" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="5" y="7" width="11" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
 function AccountsPanel({
   session,
   authMode,
@@ -397,61 +414,72 @@ function AccountsPanel({
   if (session) {
     return (
       <section className="auth-panel">
-        <p className="chart-title">
-          {myAppSetup.secretConfigured ? `Webhook secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
-        </p>
-        <div className="auth-actions">
-          {!myAppSetup.secretConfigured ? (
-            <button type="button" className="login-button" onClick={() => onSecretAction('create')} disabled={myAppSetup.loading}>
-              {myAppSetup.loading ? 'Working...' : 'Generate secret'}
-            </button>
-          ) : (
-            <button type="button" className="login-button" onClick={() => onSecretAction('rotate')} disabled={myAppSetup.loading}>
-              {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
-            </button>
-          )}
-          <button type="button" className="login-button" onClick={onSignOut}>
-            Log Out
-          </button>
-        </div>
-        {latestSecret ? (
-          <div className="copy-row">
-            <p className="auth-info">Copy this now: {latestSecret}</p>
-            <button type="button" className="copy-icon-button" aria-label="Copy secret" onClick={() => copyValue(latestSecret, 'secret')}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 1.5V9h4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
-                <rect x="3" y="7" width="12" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
-              </svg>
-            </button>
-            {copiedField === 'secret' ? <span className="copy-feedback">Copied</span> : null}
-          </div>
-        ) : null}
-        <p className="auth-info">
-          In{' '}
-          <a href={ascWebhookHelpUrl} target="_blank" rel="noreferrer">
-            App Store Connect webhooks
-          </a>
-          , create a webhook, name it for your reference (for example, &quot;Review Stats&quot;), and use this secret + endpoint URL:
-        </p>
-        <div className="copy-row">
-          <p className="auth-info">
-            <code>{webhookUrl}</code>
+        <div className="auth-block">
+          <p className="auth-section-title">Webhook Secret</p>
+          <p className="chart-title">
+            {myAppSetup.secretConfigured ? `Current secret: ${myAppSetup.secretPreview}` : 'No webhook secret configured yet.'}
           </p>
-          <button
-            type="button"
-            className="copy-icon-button"
-            aria-label="Copy webhook URL"
-            onClick={() => copyValue(webhookUrl, 'url')}
-            disabled={!myAppSetup.webhookUrl}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 1.5V9h4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
-              <rect x="3" y="7" width="12" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
-          </button>
-          {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
+          <div className="auth-actions">
+            {!myAppSetup.secretConfigured ? (
+              <button type="button" className="login-button" onClick={() => onSecretAction('create')} disabled={myAppSetup.loading}>
+                {myAppSetup.loading ? 'Working...' : 'Generate secret'}
+              </button>
+            ) : (
+              <button type="button" className="login-button" onClick={() => onSecretAction('rotate')} disabled={myAppSetup.loading}>
+                {myAppSetup.loading ? 'Working...' : 'Rotate secret'}
+              </button>
+            )}
+            <button type="button" className="login-button" onClick={onSignOut}>
+              Log Out
+            </button>
+          </div>
+          {latestSecret ? (
+            <div className="copy-row">
+              <p className="auth-info">Copy this now: {latestSecret}</p>
+              <button
+                type="button"
+                className={`copy-icon-button ${copiedField === 'secret' ? 'is-copied' : ''}`}
+                aria-label="Copy secret"
+                onClick={() => copyValue(latestSecret, 'secret')}
+              >
+                <CopyIcon copied={copiedField === 'secret'} />
+              </button>
+              {copiedField === 'secret' ? <span className="copy-feedback">Copied</span> : null}
+            </div>
+          ) : null}
         </div>
-        <p className="auth-info">Select event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</p>
+
+        <div className="auth-block">
+          <p className="auth-section-title">Setup Steps</p>
+          <ol className="account-steps">
+            <li>
+              Open{' '}
+              <a href={ascWebhookHelpUrl} target="_blank" rel="noreferrer">
+                App Store Connect webhooks
+              </a>
+              .
+            </li>
+            <li>Name it for reference (for example, &quot;Review Stats&quot;).</li>
+            <li>Paste your endpoint URL:</li>
+          </ol>
+          <div className="copy-row">
+            <p className="auth-info">
+              <code>{webhookUrl}</code>
+            </p>
+            <button
+              type="button"
+              className={`copy-icon-button ${copiedField === 'url' ? 'is-copied' : ''}`}
+              aria-label="Copy webhook URL"
+              onClick={() => copyValue(webhookUrl, 'url')}
+              disabled={!myAppSetup.webhookUrl}
+            >
+              <CopyIcon copied={copiedField === 'url'} />
+            </button>
+            {copiedField === 'url' ? <span className="copy-feedback">Copied</span> : null}
+          </div>
+          <p className="auth-info">Set event triggers: &quot;App Version Status&quot; and &quot;Build Version Status&quot;.</p>
+          <p className="auth-info">Use the same secret from this page in ASC webhook &quot;Secret&quot;.</p>
+        </div>
         {myAppSetup.error ? <p className="auth-error">{myAppSetup.error}</p> : null}
       </section>
     )

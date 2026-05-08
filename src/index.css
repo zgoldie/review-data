@@ -126,6 +126,23 @@ body {
 
 .auth-panel {
   padding: 10px;
+  display: grid;
+  gap: 14px;
+}
+
+.auth-block {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+
+.auth-section-title {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 400;
 }
 
 .accounts-panel {
@@ -197,6 +214,7 @@ body {
 .auth-info {
   margin: 0;
   font-size: 12px;
+  line-height: 1.45;
 }
 
 .copy-row {
@@ -209,25 +227,52 @@ body {
 .copy-icon-button {
   appearance: none;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--bg-panel);
   color: var(--text);
-  width: 26px;
-  height: 26px;
-  padding: 2px;
+  width: 28px;
+  height: 28px;
+  padding: 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .copy-icon-button svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+}
+
+.copy-icon-button:hover {
+  background: var(--bg-surface);
+}
+
+.copy-icon-button:active {
+  transform: translateY(1px);
+}
+
+.copy-icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.copy-icon-button.is-copied {
+  background: var(--bg-surface);
 }
 
 .copy-feedback {
   font-size: 11px;
   text-transform: uppercase;
+}
+
+.account-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .myapp-setup {
